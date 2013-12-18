@@ -26,7 +26,6 @@ import getopt
 import os
 import subprocess
 import sys
-import struct
 import re
 
 import images2gif
@@ -62,37 +61,34 @@ for  i in range(len(optlist)):
     if optlist[i][0] == "-p":
         palette = optlist[i][1]
 
+using_dir = os.path.dirname(source_shp) + os.sep
+try:
+    os.mkdir(using_dir + "pngs")
+except:
+    pass
+os.chdir(using_dir + "pngs")
+
 # get PNG from SHP using OpenRA.Utility
 subprocess.Popen(["mono", config.openra_path, "--png", source_shp, _PATH+"palette/"+palette]).wait()
 print("created png form shp...")
 
-# 2 bytes
-def Bytes2Int2(data):
-    _byte1 = struct.unpack('B', data[0])[0]
-    _byte2 = struct.unpack('B', data[1])[0]
-    _byte2 = _byte2 * 256
-    return _byte1 + _byte2
-
-# get amount of frames from SHP
-bin = open(source_shp, "r")
-frames = Bytes2Int2(bin.read(2))
-    
-# get a full path to PNG
-path_to_shp = os.path.dirname(source_shp)+os.sep
-img_path = path_to_shp + os.path.basename(source_shp).split('.shp')[0] + ".png"
-
-# crop PNG into frames
-im = Image.open(img_path)
-size = im.size
+shpdir = os.listdir(using_dir + "pngs")
+frames = 0
+for fn in shpdir:
+    if fn.split('.')[1] == "png":
+        frames = frames + 1
 
 area = []
 current_pos = 0
 for frame in range(frames):
+    cur_frame = str(frame).rjust(4,'0')
+    img_path = using_dir + "pngs/" + os.path.basename(source_shp).split('.shp')[0] + "-" + cur_frame + ".png"
+    im = Image.open(img_path)
+    size = im.size
     # coords: left, bottom, right, top
-    box = (current_pos, 0, current_pos+size[0]/frames, size[1])
+    box = (current_pos, 0, current_pos+size[0], size[1])
     copy_im = im.copy()
     area.append(copy_im.crop(box))
-    current_pos = current_pos + size[0]/frames
 
 images2gif.writeGif(_PATH+"preview.gif", area, duration=0.5, loops=0, dither=0)
 print("Path to generated GIF: "+_PATH+"preview.gif")
